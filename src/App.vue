@@ -23,10 +23,7 @@ import { MarkerType, PointInfo } from ".";
 
 let map: L.Map;
 let moveTip: L.Marker;
-let moveIcon: L.DivIcon = L.divIcon({
-  className: "move-tip",
-  html: "单击放置点,右击结束",
-});
+
 let dragMarkerId: number;
 const markerType = ref<MarkerType>("Point");
 
@@ -44,7 +41,10 @@ const polygonMarkerInfo = new Map();
 const test = () => {
   console.log(pointMarkerInfo);
   console.log(polygonMarkerInfo);
+  // moveTip.setIcon(getMoveTipIcon('test'))
 };
+
+// 地图初始化
 const init = () => {
   map = L.map("map", {
     center: [39.909186, 116.397411],
@@ -62,10 +62,37 @@ const init = () => {
   bindEvent();
 };
 
-const handleMarkerTypeChange = () => {
-  handleDrawNew();
+// 清除map事件
+const mapOffEvent = () => {
+  map.off("click contextmenu dblclick mousemove");
 };
 
+const getMoveTipIcon = (html: string) => {
+  return L.divIcon({
+    className: "move-tip",
+    html,
+  });
+};
+
+const handleSetMoveTip = (l?: L.LatLngExpression, msg?: string) => {
+  const latlng = l || [0, 0];
+  const tip =
+    msg || markerType.value === "Point" ? "单击放置点" : "单击放置点，右击结束";
+  if (moveTip) {
+    moveTip.setLatLng(latlng);
+  } else {
+    moveTip = L.marker(latlng).addTo(map);
+  }
+  moveTip.setIcon(getMoveTipIcon(tip));
+};
+
+// marker类型改变
+const handleMarkerTypeChange = () => {
+  handleDrawNew();
+  handleSetMoveTip()
+};
+
+// 获取点icon
 const getPointIcon = (color?: string) => {
   const blueColor = "#2D8CF0";
   const pointColor = color || blueColor;
@@ -76,6 +103,7 @@ const getPointIcon = (color?: string) => {
   });
 };
 
+// 绑定事件
 const bindEvent = () => {
   map
     .on("click", (e) => {
@@ -98,22 +126,17 @@ const bindEvent = () => {
     })
     .on("dblclick", () => {})
     .on("mousemove", (e) => {
-      if (moveTip) {
-        const {
-          latlng: { lat, lng },
-        }: any = e;
-        moveTip.setLatLng([lat, lng]);
-      }
-      // moveTip = L.marker([lat, lng], {
-      //     icon: moveIcon,
-      //   }).addTo(map);
+      const { latlng }: any = e;
+      handleSetMoveTip(latlng);
     });
 };
 
+// 画新的marker
 const handleDrawNew = () => {
   currentId.value = guid();
 };
 
+// 画点
 const drawPoint = (info: PointInfo) => {
   const {
     lat: lt,
@@ -141,7 +164,12 @@ const drawPoint = (info: PointInfo) => {
     .on("drag", (e) => {
       pointsUpdate(e);
     })
-    .on("dragend", () => {});
+    .on("dragend", () => {})
+    .on("mousemove", (e) => {
+      // mapOffEvent()
+      // const { latlng }: any = e;
+      // handleSetMoveTip(latlng,'点击删除,拖拽改变位置');
+    });
   const markerId = L.stamp(marker);
   const properties = {
     id,
@@ -153,6 +181,7 @@ const drawPoint = (info: PointInfo) => {
   reDraw(type, id);
 };
 
+// 画线
 const drawLine = (id: number | string) => {
   let pointInfo;
   const points: any = [];
@@ -181,6 +210,7 @@ const drawLine = (id: number | string) => {
   }
 };
 
+// 画图形
 const drawPolygon = (id: number | string) => {
   let pointInfo;
   const points: any = [];
@@ -212,6 +242,7 @@ const drawPolygon = (id: number | string) => {
   }
 };
 
+// 找到拖动点
 const findDragPoint = (e: L.LeafletEvent) => {
   const id = L.stamp(e.target);
   if (pointMarkerInfo.has(id)) {
@@ -221,6 +252,7 @@ const findDragPoint = (e: L.LeafletEvent) => {
   }
 };
 
+// 点坐标更新
 const pointsUpdate = (e: L.LeafletEvent) => {
   if (dragMarkerId) {
     const { properties } = pointMarkerInfo.get(dragMarkerId);
@@ -229,6 +261,7 @@ const pointsUpdate = (e: L.LeafletEvent) => {
   }
 };
 
+// 重绘图形
 const reDraw = (type: MarkerType, id: number | string) => {
   if (type === "LineString") {
     drawLine(id);
@@ -238,6 +271,7 @@ const reDraw = (type: MarkerType, id: number | string) => {
   }
 };
 
+// 点击点
 const handleClickPoint = (e: L.LeafletEvent) => {
   const markerId = L.stamp(e.target);
   const {
